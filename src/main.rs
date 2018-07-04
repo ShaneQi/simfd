@@ -2,8 +2,6 @@
 
 // use std::env;
 
-// use std::path::Path;
-
 extern crate clap;
 extern crate plist;
 extern crate prettytable;
@@ -30,12 +28,21 @@ fn main() {
                 .help("Sets a custom simulator directory.")
                 .takes_value(true),
         )
-        .subcommand(
+        .subcommands(vec![
             SubCommand::with_name("devices")
                 .about("get devices list")
                 .version("1.0")
                 .author("Shane Qi <qizengtai@gmail.com>"),
-        )
+            SubCommand::with_name("device-path")
+                .about("get the path of a simulator location")
+                .version("1.0")
+                .author("Shane Qi <qizengtai@gmail.com>")
+                .arg(
+                    Arg::with_name("SIMULATOR ID")
+                        .help("Identifies the simulator to open directory of.")
+                        .required(true),
+                ),
+        ])
         .get_matches();
 
     let simulator_directory = matches
@@ -51,9 +58,8 @@ fn main() {
             return default_simualtor_directory;
         });
 
-    let mut table = Table::new();
-
     if let Some(_) = matches.subcommand_matches("devices") {
+        let mut table = Table::new();
         let mut vec = Vec::<(String, String, String)>::new();
         for entry in read_dir(simulator_directory).expect("Didn't find simulators directory.") {
             if let Ok(entry) = entry {
@@ -133,6 +139,15 @@ fn main() {
             table.printstd();
         } else {
             println!("Didn't find any devices in the simulator directory.")
+        }
+    } else if let Some(matches) = matches.subcommand_matches("device-path") {
+        if let Some(simulator_id) = matches.value_of("SIMULATOR ID") {
+            let simulator_path = simulator_directory + "/" + &simulator_id;
+            if std::path::Path::new(&simulator_path).is_dir() {
+                println!("{}", simulator_path);
+            } else {
+                println!("Didn't find device with such id.");
+            }
         }
     }
 }
