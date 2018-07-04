@@ -132,6 +132,5 @@ fn main() {
             ]));
         }
         table.printstd();
-        println!("{}", table.len());
     }
 }
