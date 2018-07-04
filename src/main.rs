@@ -123,14 +123,16 @@ fn main() {
                 Cell::new("OS"),
                 Cell::new("UDID"),
             ]));
+            for (name, runtime, udid) in vec {
+                table.add_row(Row::new(vec![
+                    Cell::new(&name),
+                    Cell::new(&runtime),
+                    Cell::new(&udid),
+                ]));
+            }
+            table.printstd();
+        } else {
+            println!("Didn't find any devices in the simulator directory.")
         }
-        for (name, runtime, udid) in vec {
-            table.add_row(Row::new(vec![
-                Cell::new(&name),
-                Cell::new(&runtime),
-                Cell::new(&udid),
-            ]));
-        }
-        table.printstd();
     }
 }
