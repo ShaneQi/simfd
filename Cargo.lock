@@ -176,8 +176,8 @@ version = "0.3.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "simulator-fd"
-version = "0.1.0"
+name = "simfd"
+version = "1.0.0"
 dependencies = [
  "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "plist-rs 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
