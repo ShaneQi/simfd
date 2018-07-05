@@ -12,7 +12,7 @@ use std::io::BufReader;
 use std::vec::Vec;
 
 fn main() {
-    let matches = App::new("simulator-fd")
+    let matches = App::new("simfd")
         .version("1.0")
         .author("Shane Qi <qizengtai@gmail.com>")
         .about("Find out file location of Xcode simulators.")

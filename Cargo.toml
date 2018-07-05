@@ -1,5 +1,5 @@
 [package]
-name = "simulator-fd"
+name = "simfd"
 version = "1.0.0"
 authors = ["Shane Qi <qizengtai@gmail.com>"]
 
