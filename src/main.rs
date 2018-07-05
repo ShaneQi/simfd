@@ -18,8 +18,14 @@ fn main() {
         .about("Find out file location of Xcode simulators.")
         .arg(
             Arg::with_name("QUERY")
-                .help("queries to find app location or simulator device lodation.")
+                .help("Queries to find app location or simulator device lodation.")
                 .multiple(true),
+        )
+        .arg(
+            Arg::with_name("device")
+                .short("d")
+                .long("device")
+                .help("Search among devices instead of apps."),
         )
         .get_matches();
 
@@ -48,7 +54,7 @@ fn main() {
         if let Ok(entry) = entry {
             let mut path = entry.path();
             if path.is_dir() {
-                let mut apps_path = path.clone();
+                let mut device_path = path.clone();
                 path.push("device.plist");
                 if let Ok(file) = File::open(path) {
                     let mut reader = BufReader::new(file);
@@ -87,17 +93,41 @@ fn main() {
                                 None
                             }
                         });
-                        // let udid = dict.get("UDID").and_then(|e| {
-                        //     if let Plist::String(name) = e {
-                        //         Some(name.to_owned())
-                        //     } else {
-                        //         None
-                        //     }
-                        // });
-                        if let Some(device_name) = name {
-                            if let Some(runtime) = runtime {
-                                apps_path.push("data/Containers/Data/Application");
-                                if let Ok(entries) = read_dir(apps_path) {
+                        let udid = dict.get("UDID").and_then(|e| {
+                            if let Plist::String(name) = e {
+                                Some(name.to_owned())
+                            } else {
+                                None
+                            }
+                        });
+                        if let (Some(device_name), Some(runtime), Some(udid)) =
+                            (name, runtime, udid)
+                        {
+                            if matches.occurrences_of("device") > 0 {
+                                let mut matched = true;
+                                for q in &queries {
+                                    if device_name.to_lowercase().contains(&q.to_lowercase())
+                                        || q.to_lowercase().contains(&device_name.to_lowercase())
+                                        || runtime.to_lowercase().contains(&q.to_lowercase())
+                                        || q.to_lowercase().contains(&runtime.to_lowercase())
+                                        || udid.to_lowercase().contains(&q.to_lowercase())
+                                        || q.to_lowercase().contains(&udid.to_lowercase())
+                                    {
+                                    } else {
+                                        matched = false;
+                                        break;
+                                    }
+                                }
+                                if matched {
+                                    table.add_row(Row::new(vec![
+                                        Cell::new(&device_name),
+                                        Cell::new(&runtime),
+                                        Cell::new(device_path.to_str().unwrap_or("")),
+                                    ]));
+                                }
+                            } else {
+                                device_path.push("data/Containers/Data/Application");
+                                if let Ok(entries) = read_dir(device_path) {
                                     for entry in entries {
                                         if let Ok(entry) = entry {
                                             let mut path = entry.path();
@@ -143,7 +173,12 @@ fn main() {
                                                                     .contains(&q.to_lowercase())
                                                                 || q.to_lowercase().contains(
                                                                     &runtime.to_lowercase(),
-                                                                ) {
+                                                                )
+                                                                || udid.to_lowercase()
+                                                                    .contains(&q.to_lowercase())
+                                                                || q.to_lowercase()
+                                                                    .contains(&udid.to_lowercase())
+                                                            {
                                                             } else {
                                                                 matched = false;
                                                                 break;
@@ -175,96 +210,4 @@ fn main() {
     } else {
         println!("Didn't find any app that matches queries.")
     }
-    // if let Some(_) = matches.subcommand_matches("devices") {
-    //     let mut table = Table::new();
-    //     let mut vec = Vec::<(String, String, String)>::new();
-    //     for entry in read_dir(simulator_directory).expect("Didn't find simulators directory.") {
-    //         if let Ok(entry) = entry {
-    //             let mut path = entry.path();
-    //             if path.is_dir() {
-    //                 path.push("device.plist");
-    //                 if let Ok(file) = File::open(path) {
-    //                     let mut reader = BufReader::new(file);
-    //                     let plist = Plist::from_reader(&mut reader).unwrap();
-    //                     match plist {
-    //                         Plist::Dict(dict) => {
-    //                             let name = dict.get("name").and_then(|e| {
-    //                                 if let Plist::String(name) = e {
-    //                                     Some(name.to_owned())
-    //                                 } else {
-    //                                     None
-    //                                 }
-    //                             });
-    //                             let runtime = dict.get("runtime").and_then(|e| {
-    //                                 if let Plist::String(name) = e {
-    //                                     name.to_owned().split(".").last().map(|s| s.to_string())
-    //                                 } else {
-    //                                     None
-    //                                 }
-    //                             });
-    //                             let udid = dict.get("UDID").and_then(|e| {
-    //                                 if let Plist::String(name) = e {
-    //                                     Some(name.to_owned())
-    //                                 } else {
-    //                                     None
-    //                                 }
-    //                             });
-    //                             if name.is_some() || runtime.is_some() {
-    //                                 vec.push((
-    //                                     name.unwrap_or("".to_string()),
-    //                                     runtime.unwrap_or("".to_string()),
-    //                                     udid.unwrap_or("".to_string()),
-    //                                 ));
-    //                             }
-    //                         }
-    //                         _ => (),
-    //                     };
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     vec.sort_unstable_by(|a, b| {
-    //         let (a_name, a_runtime, _) = a;
-    //         let (b_name, b_runtime, _) = b;
-    //         if a_runtime < b_runtime {
-    //             std::cmp::Ordering::Less
-    //         } else if a_runtime > b_runtime {
-    //             std::cmp::Ordering::Greater
-    //         } else {
-    //             if a_name < b_name {
-    //                 std::cmp::Ordering::Less
-    //             } else if a_name > b_name {
-    //                 std::cmp::Ordering::Greater
-    //             } else {
-    //                 std::cmp::Ordering::Equal
-    //             }
-    //         }
-    //     });
-    //     if !vec.is_empty() {
-    //         table.add_row(Row::new(vec![
-    //             Cell::new("Name"),
-    //             Cell::new("OS"),
-    //             Cell::new("UDID"),
-    //         ]));
-    //         for (name, runtime, udid) in vec {
-    //             table.add_row(Row::new(vec![
-    //                 Cell::new(&name),
-    //                 Cell::new(&runtime),
-    //                 Cell::new(&udid),
-    //             ]));
-    //         }
-    //         table.printstd();
-    //     } else {
-    //         println!("Didn't find any devices in the simulator directory.")
-    //     }
-    // } else if let Some(matches) = matches.subcommand_matches("device-path") {
-    //     if let Some(simulator_id) = matches.value_of("SIMULATOR ID") {
-    //         let simulator_path = simulator_directory + "/" + &simulator_id;
-    //         if std::path::Path::new(&simulator_path).is_dir() {
-    //             println!("{}", simulator_path);
-    //         } else {
-    //             println!("Didn't find device with such id.");
-    //         }
-    //     }
-    // }
 }
