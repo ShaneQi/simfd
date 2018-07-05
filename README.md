@@ -14,7 +14,7 @@ FLAGS:
     -V, --version    Prints version information
 
 ARGS:
-    <QUERY>...    Queries to find app location or simulator device lodation.
+    <QUERY>...    Queries to find app location or simulator device location.
 
 ```
 
