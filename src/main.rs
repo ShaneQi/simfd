@@ -56,8 +56,11 @@ fn main() {
             if path.is_dir() {
                 let mut device_path = path.clone();
                 path.push("device.plist");
-                if let Ok(file) = File::open(path) {
-                    if let (Some(device_name), Some(runtime), Some(udid)) = device_plist_info(file)
+                if let Some(plist) = File::open(path)
+                    .ok()
+                    .and_then(|file| Plist::from_reader(&mut BufReader::new(file)).ok())
+                {
+                    if let (Some(device_name), Some(runtime), Some(udid)) = device_plist_info(plist)
                     {
                         if matches.occurrences_of("device") > 0 {
                             if match_device_info(&device_name, &runtime, &udid, &queries) {
@@ -81,8 +84,11 @@ fn main() {
                                         path.push(
                                             ".com.apple.mobile_container_manager.metadata.plist",
                                         );
-                                        if let Ok(file) = File::open(path) {
-                                            if let Some(bundle_id) = app_plist_info(file) {
+                                        if let Some(plist) =
+                                            File::open(path).ok().and_then(|file| {
+                                                Plist::from_reader(&mut BufReader::new(file)).ok()
+                                            }) {
+                                            if let Some(bundle_id) = app_plist_info(plist) {
                                                 if match_app_info(
                                                     &device_name,
                                                     &runtime,
@@ -115,8 +121,8 @@ fn main() {
     }
 }
 
-fn device_plist_info(file: std::fs::File) -> (Option<String>, Option<String>, Option<String>) {
-    if let Ok(Plist::Dict(dict)) = Plist::from_reader(&mut BufReader::new(file)) {
+fn device_plist_info(plist: Plist) -> (Option<String>, Option<String>, Option<String>) {
+    if let Plist::Dict(dict) = plist {
         let name = dict.get("name").and_then(|e| {
             if let Plist::String(name) = e {
                 Some(name.to_owned())
@@ -160,8 +166,8 @@ fn device_plist_info(file: std::fs::File) -> (Option<String>, Option<String>, Op
     }
 }
 
-fn app_plist_info(file: std::fs::File) -> Option<String> {
-    if let Ok(Plist::Dict(dict)) = Plist::from_reader(&mut BufReader::new(file)) {
+fn app_plist_info(plist: Plist) -> Option<String> {
+    if let Plist::Dict(dict) = plist {
         dict.get("MCMMetadataIdentifier").and_then(|e| {
             if let Plist::String(name) = e {
                 Some(name.to_owned())
