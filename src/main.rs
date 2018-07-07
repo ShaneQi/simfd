@@ -57,142 +57,45 @@ fn main() {
                 let mut device_path = path.clone();
                 path.push("device.plist");
                 if let Ok(file) = File::open(path) {
-                    let mut reader = BufReader::new(file);
-                    let plist = Plist::from_reader(&mut reader).unwrap();
-                    if let Plist::Dict(dict) = plist {
-                        let name = dict.get("name").and_then(|e| {
-                            if let Plist::String(name) = e {
-                                Some(name.to_owned())
-                            } else {
-                                None
+                    if let (Some(device_name), Some(runtime), Some(udid)) = device_plist_info(file)
+                    {
+                        if matches.occurrences_of("device") > 0 {
+                            if match_device_info(&device_name, &runtime, &udid, &queries) {
+                                table.add_row(Row::new(vec![
+                                    Cell::new(&device_name),
+                                    Cell::new(&runtime),
+                                    Cell::new(device_path.to_str().unwrap_or("")),
+                                ]));
                             }
-                        });
-                        let runtime = dict.get("runtime").and_then(|e| {
-                            if let Plist::String(name) = e {
-                                name.to_owned()
-                                    .split(".")
-                                    .last()
-                                    .map(|s| s.to_string())
-                                    .and_then(|s| {
-                                        let mut components = Vec::<String>::new();
-                                        for component in s.split("-") {
-                                            components.push(component.to_string())
-                                        }
-                                        if components.len() < 3 {
-                                            None
-                                        } else {
-                                            Some(format!(
-                                                "{} {}.{}",
-                                                components.get(0).unwrap(),
-                                                components.get(1).unwrap(),
-                                                components.get(2).unwrap()
-                                            ))
-                                        }
-                                    })
-                            } else {
-                                None
-                            }
-                        });
-                        let udid = dict.get("UDID").and_then(|e| {
-                            if let Plist::String(name) = e {
-                                Some(name.to_owned())
-                            } else {
-                                None
-                            }
-                        });
-                        if let (Some(device_name), Some(runtime), Some(udid)) =
-                            (name, runtime, udid)
-                        {
-                            if matches.occurrences_of("device") > 0 {
-                                let mut matched = true;
-                                for q in &queries {
-                                    if device_name.to_lowercase().contains(&q.to_lowercase())
-                                        || q.to_lowercase().contains(&device_name.to_lowercase())
-                                        || runtime.to_lowercase().contains(&q.to_lowercase())
-                                        || q.to_lowercase().contains(&runtime.to_lowercase())
-                                        || udid.to_lowercase().contains(&q.to_lowercase())
-                                        || q.to_lowercase().contains(&udid.to_lowercase())
-                                    {
-                                    } else {
-                                        matched = false;
-                                        break;
-                                    }
-                                }
-                                if matched {
-                                    table.add_row(Row::new(vec![
-                                        Cell::new(&device_name),
-                                        Cell::new(&runtime),
-                                        Cell::new(device_path.to_str().unwrap_or("")),
-                                    ]));
-                                }
-                            } else {
-                                device_path.push("data/Containers/Data/Application");
-                                if let Ok(entries) = read_dir(device_path) {
-                                    for entry in entries {
-                                        if let Ok(entry) = entry {
-                                            let mut path = entry.path();
-                                            let path_clone = path.clone();
-                                            let app_path = path_clone
-                                                .into_os_string()
-                                                .into_string()
-                                                .unwrap_or("".to_string());
-                                            path.push(
+                        } else {
+                            device_path.push("data/Containers/Data/Application");
+                            if let Ok(entries) = read_dir(device_path) {
+                                for entry in entries {
+                                    if let Ok(entry) = entry {
+                                        let mut path = entry.path();
+                                        let path_clone = path.clone();
+                                        let app_path = path_clone
+                                            .into_os_string()
+                                            .into_string()
+                                            .unwrap_or("".to_string());
+                                        path.push(
                                             ".com.apple.mobile_container_manager.metadata.plist",
                                         );
-                                            if let Ok(file) = File::open(path) {
-                                                let mut reader = BufReader::new(file);
-                                                let app_plist =
-                                                    Plist::from_reader(&mut reader).unwrap();
-                                                if let Plist::Dict(dict) = app_plist {
-                                                    let bundle_id = dict.get(
-                                                        "MCMMetadataIdentifier",
-                                                    ).and_then(|e| {
-                                                        if let Plist::String(name) = e {
-                                                            Some(name.to_owned())
-                                                        } else {
-                                                            None
-                                                        }
-                                                    });
-                                                    if let Some(bundle_id) = bundle_id {
-                                                        let mut matched = true;
-                                                        for q in &queries {
-                                                            if bundle_id
-                                                                .to_lowercase()
-                                                                .contains(&q.to_lowercase())
-                                                                || q.to_lowercase().contains(
-                                                                    &bundle_id.to_lowercase(),
-                                                                )
-                                                                || device_name
-                                                                    .to_lowercase()
-                                                                    .contains(&q.to_lowercase())
-                                                                || q.to_lowercase().contains(
-                                                                    &device_name.to_lowercase(),
-                                                                )
-                                                                || runtime
-                                                                    .to_lowercase()
-                                                                    .contains(&q.to_lowercase())
-                                                                || q.to_lowercase().contains(
-                                                                    &runtime.to_lowercase(),
-                                                                )
-                                                                || udid.to_lowercase()
-                                                                    .contains(&q.to_lowercase())
-                                                                || q.to_lowercase()
-                                                                    .contains(&udid.to_lowercase())
-                                                            {
-                                                            } else {
-                                                                matched = false;
-                                                                break;
-                                                            }
-                                                        }
-                                                        if matched {
-                                                            table.add_row(Row::new(vec![
-                                                                Cell::new(&bundle_id),
-                                                                Cell::new(&device_name),
-                                                                Cell::new(&runtime),
-                                                                Cell::new(&app_path),
-                                                            ]));
-                                                        }
-                                                    }
+                                        if let Ok(file) = File::open(path) {
+                                            if let Some(bundle_id) = app_plist_info(file) {
+                                                if match_app_info(
+                                                    &device_name,
+                                                    &runtime,
+                                                    &udid,
+                                                    &bundle_id,
+                                                    &queries,
+                                                ) {
+                                                    table.add_row(Row::new(vec![
+                                                        Cell::new(&bundle_id),
+                                                        Cell::new(&device_name),
+                                                        Cell::new(&runtime),
+                                                        Cell::new(&app_path),
+                                                    ]));
                                                 }
                                             }
                                         }
@@ -210,4 +113,108 @@ fn main() {
     } else {
         println!("Didn't find any app that matches queries.")
     }
+}
+
+fn device_plist_info(file: std::fs::File) -> (Option<String>, Option<String>, Option<String>) {
+    if let Ok(Plist::Dict(dict)) = Plist::from_reader(&mut BufReader::new(file)) {
+        let name = dict.get("name").and_then(|e| {
+            if let Plist::String(name) = e {
+                Some(name.to_owned())
+            } else {
+                None
+            }
+        });
+        let runtime = dict.get("runtime").and_then(|e| {
+            if let Plist::String(name) = e {
+                name.to_owned()
+                    .split(".")
+                    .last()
+                    .map(|s| s.to_string())
+                    .and_then(|s| {
+                        let mut components = Vec::<String>::new();
+                        for component in s.split("-") {
+                            components.push(component.to_string())
+                        }
+                        if let (Some(os), Some(major), Some(minor)) =
+                            (components.get(0), components.get(1), components.get(2))
+                        {
+                            Some(format!("{} {}.{}", os, major, minor))
+                        } else {
+                            None
+                        }
+                    })
+            } else {
+                None
+            }
+        });
+        let udid = dict.get("UDID").and_then(|e| {
+            if let Plist::String(name) = e {
+                Some(name.to_owned())
+            } else {
+                None
+            }
+        });
+        (name, runtime, udid)
+    } else {
+        (None, None, None)
+    }
+}
+
+fn app_plist_info(file: std::fs::File) -> Option<String> {
+    if let Ok(Plist::Dict(dict)) = Plist::from_reader(&mut BufReader::new(file)) {
+        dict.get("MCMMetadataIdentifier").and_then(|e| {
+            if let Plist::String(name) = e {
+                Some(name.to_owned())
+            } else {
+                None
+            }
+        })
+    } else {
+        None
+    }
+}
+
+fn match_app_info(
+    device_name: &String,
+    runtime: &String,
+    udid: &String,
+    bundle_id: &String,
+    queries: &Vec<String>,
+) -> bool {
+    for q in queries {
+        if bundle_id.to_lowercase().contains(&q.to_lowercase())
+            || q.to_lowercase().contains(&bundle_id.to_lowercase())
+            || device_name.to_lowercase().contains(&q.to_lowercase())
+            || q.to_lowercase().contains(&device_name.to_lowercase())
+            || runtime.to_lowercase().contains(&q.to_lowercase())
+            || q.to_lowercase().contains(&runtime.to_lowercase())
+            || udid.to_lowercase().contains(&q.to_lowercase())
+            || q.to_lowercase().contains(&udid.to_lowercase())
+        {
+        } else {
+            return false;
+        }
+    }
+    true
+}
+
+fn match_device_info(
+    device_name: &String,
+    runtime: &String,
+    udid: &String,
+    queries: &Vec<String>,
+) -> bool {
+    for q in queries {
+        if device_name.to_lowercase().contains(&q.to_lowercase())
+            || q.to_lowercase().contains(&device_name.to_lowercase())
+            || runtime.to_lowercase().contains(&q.to_lowercase())
+            || q.to_lowercase().contains(&runtime.to_lowercase())
+            || udid.to_lowercase().contains(&q.to_lowercase())
+            || q.to_lowercase().contains(&udid.to_lowercase())
+        {
+        } else {
+            return false;
+        }
+    }
+    true
 }
